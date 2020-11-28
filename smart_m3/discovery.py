@@ -25,15 +25,15 @@ def discover(type = "Manual", name = None):
         if pyb_present:
             return discover_mDNS(name)
         else:
-            print "mDNS discovery not possible"
+            print("mDNS discovery not possible")
             return []
 
 def discover_Manual_TCP():
-    print "Manual Discovery. Enter details:"
-    ssname = raw_input("SmartSpace name       >")
-    ip =     raw_input("SmartSpace IP Address >" )
-    port =   raw_input("SmartSpace Port       >" )
-    print ssname, ip, port
+    print("Manual Discovery. Enter details:")
+    ssname = input("SmartSpace name       >")
+    ip =     input("SmartSpace IP Address >" )
+    port =   input("SmartSpace Port       >" )
+    print(ssname, ip, port)
     rtuple = ( ssname, ("TCP", (ip,int(port))  ))
     
     return rtuple
@@ -51,18 +51,18 @@ def discover_mDNS(name = None, reg_type = "_kspace._tcp"):
         discovered_lock.acquire()
         global discovered
         tmp = []
-        print discovered
+        print(discovered)
         for i in discovered:
             tmp.append(i)
         discovered_lock.release()
-        print tmp
+        print(tmp)
         return tmp
     else:
         discovered_lock.acquire()
         # print discovered
         tmp = filter(lambda x: x[0] == name, discovered)
         discovered_lock.release()
-        print tmp
+        print(tmp)
         return tmp
 
 
@@ -109,7 +109,7 @@ class mDNS_Discovery(threading.Thread):
                 if address_sdRef in ready[0]:
                     pybonjour.DNSServiceProcessResult(address_sdRef)
                 else:
-                    print 'Resolve timed out'
+                    print('Resolve timed out')
                         
             finally:
                 address_sdRef.close()
@@ -143,7 +143,7 @@ class mDNS_Discovery(threading.Thread):
                 while not self.resolved:
                     ready = select.select([resolve_sdRef], [], [], TIMEOUT)
                     if resolve_sdRef not in ready[0]:
-                        print 'Resolve timed out'
+                        print('Resolve timed out')
                         break
                     pybonjour.DNSServiceProcessResult(resolve_sdRef)
                 else:

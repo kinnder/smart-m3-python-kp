@@ -1,4 +1,4 @@
-from StringIO import StringIO
+from io import StringIO
 from xml.sax import saxutils
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
@@ -6,7 +6,7 @@ from collections import deque
 import threading
 import socket
 import uuid
-import discovery
+from smart_m3 import discovery
 from xml.dom.minidom import parseString
 
 # SSAP Constants
@@ -30,7 +30,7 @@ CDATA_START = '<![CDATA['
 CDATA_END = ']]>'
 
 END_TAG = '</SSAP_message>'
-ETL = 15 # Length of end tag string
+ETL = 15  # Length of end tag string
 TCP = socket.getprotobyname('TCP')
 CURRENT_TR_ID = 1
 KP_ID_POSTFIX = str(uuid.uuid4())
@@ -46,8 +46,6 @@ SSAP_MESSAGE_TEMPLATE = '''
 <transaction_id>%s</transaction_id>
 %s
 </SSAP_message>'''
-
-
 
 SSAP_JOIN_PARAM_TEMPLATE = '<parameter name = "credentials">%s</parameter>'
 
@@ -107,6 +105,7 @@ M3_TRIPLE_TEMPLATE = '''
 <object type = "%s">%s</object>
 </triple>'''
 
+
 # Utilities
 
 def get_tr_id():
@@ -114,105 +113,114 @@ def get_tr_id():
     rv = CURRENT_TR_ID
     CURRENT_TR_ID = CURRENT_TR_ID + 1
     return rv
-    
+
+
 def parse_M3RDF(results):
     results_list = []
     parser = make_parser()
     mh = NodeM3RDFHandler(results_list, {})
     parser.setContentHandler(mh)
-    parser.parse(StringIO(results.encode('utf-8')))
+    parser.parse(StringIO(str(results)))#.encode('utf-8')))
     return results_list
+
 
 def parse_URI_list(results):
     results_list = []
     parser = make_parser()
     mh = UriListHandler(results_list)
     parser.setContentHandler(mh)
-    parser.parse(StringIO(results.encode('utf-8')))
+    parser.parse(StringIO(str(results)))#.encode('utf-8')))
     return results_list
 
+
 def parse_sparql(stringa):
-    if stringa =="":
-      return []
+    if stringa == "":
+        return []
 
     try:
-      oggetto=parseString(stringa)
+        oggetto = parseString(stringa)
     except:
-      print "SPARQL Syntax not valid or just empty"
-      return []
-    ite=0
-    diz_tot=[]
+        print("SPARQL Syntax not valid or just empty")
+        return []
+    ite = 0
+    diz_tot = []
     for val in oggetto.getElementsByTagName('head'):
-        variables=[]
-        link=[]
-        for var_n in val.getElementsByTagName('variable'): 
+        variables = []
+        link = []
+        for var_n in val.getElementsByTagName('variable'):
             variables.append(var_n.getAttribute("name"))
-        for lin in val.getElementsByTagName('link'): 
+        for lin in val.getElementsByTagName('link'):
             link.append(lin.getAttribute("href"))
         if oggetto.getElementsByTagName('results').length:
-           if oggetto.getElementsByTagName('results')[ite]!=0:
-              results=oggetto.getElementsByTagName('results')[ite]
-              for ris in results.getElementsByTagName('result'):
-                  dizionario=[]
-                  for bind_n in ris.getElementsByTagName('binding'):
-                      nome=bind_n.getAttribute("name")
-                      tipo=bind_n.firstChild.tagName
-                      if tipo=="literal":
-                         if bind_n.firstChild.getAttribute("xml:lang"):
-                            xml=bind_n.firstChild.getAttribute("xml:lang")
-                         elif bind_n.firstChild.getAttribute("datatype"):
-                            dat_tp=bind_n.firstChild.getAttribute("datatype")
-                         if bind_n.getElementsByTagName('literal')[0].firstChild==None:
-                            elemento=[nome,tipo,None]
-                         else:
-                            elemento=[nome,tipo,bind_n.getElementsByTagName('literal')[0].firstChild.data]
-                      elif tipo=="uri":
-                         if bind_n.getElementsByTagName('uri')[0].firstChild==None:
-                            elemento=[nome,tipo,None]
-                         else:
-                            elemento=[nome,tipo,bind_n.getElementsByTagName('uri')[0].firstChild.data]
-                      elif tipo=="bnode":
-                         if bind_n.getElementsByTagName('bnode')[0].firstChild==None:
-                            elemento=[nome,tipo,None]
-                         else:
-                            elemento=[nome,tipo,bind_n.getElementsByTagName('bnode')[0].firstChild.data]
-                      elif tipo=="unbound":
-                            elemento=[nome,tipo,None]
-                      dizionario.append(elemento)   
-                  diz_tot.append(dizionario)
-           else:
-              dizionario=[]
-              dizionario.append(oggetto.getElementsByTagName('boolean')[ite].firstChild.data)   
-              diz_tot.append(dizionario)
+            if oggetto.getElementsByTagName('results')[ite] != 0:
+                results = oggetto.getElementsByTagName('results')[ite]
+                for ris in results.getElementsByTagName('result'):
+                    dizionario = []
+                    for bind_n in ris.getElementsByTagName('binding'):
+                        nome = bind_n.getAttribute("name")
+                        tipo = bind_n.firstChild.tagName
+                        if tipo == "literal":
+                            if bind_n.firstChild.getAttribute("xml:lang"):
+                                xml = bind_n.firstChild.getAttribute("xml:lang")
+                            elif bind_n.firstChild.getAttribute("datatype"):
+                                dat_tp = bind_n.firstChild.getAttribute("datatype")
+                            if bind_n.getElementsByTagName('literal')[0].firstChild == None:
+                                elemento = [nome, tipo, None]
+                            else:
+                                elemento = [nome, tipo, bind_n.getElementsByTagName('literal')[0].firstChild.data]
+                        elif tipo == "uri":
+                            if bind_n.getElementsByTagName('uri')[0].firstChild == None:
+                                elemento = [nome, tipo, None]
+                            else:
+                                elemento = [nome, tipo, bind_n.getElementsByTagName('uri')[0].firstChild.data]
+                        elif tipo == "bnode":
+                            if bind_n.getElementsByTagName('bnode')[0].firstChild == None:
+                                elemento = [nome, tipo, None]
+                            else:
+                                elemento = [nome, tipo, bind_n.getElementsByTagName('bnode')[0].firstChild.data]
+                        elif tipo == "unbound":
+                            elemento = [nome, tipo, None]
+                        dizionario.append(elemento)
+                    diz_tot.append(dizionario)
+            else:
+                dizionario = []
+                dizionario.append(oggetto.getElementsByTagName('boolean')[ite].firstChild.data)
+                diz_tot.append(dizionario)
         else:
-           dizionario=[]
-           dizionario.append(oggetto.getElementsByTagName('boolean')[ite].firstChild.data)   
-           diz_tot.append(dizionario)
-        ite=ite+1
-    #print diz_tot     
-    return diz_tot     
+            dizionario = []
+            dizionario.append(oggetto.getElementsByTagName('boolean')[ite].firstChild.data)
+            diz_tot.append(dizionario)
+        ite = ite + 1
+    # print diz_tot
+    return diz_tot
+
 
 # Exceptions
 
 class M3Exception(Exception):
     pass
 
+
 class KPError(M3Exception):
     def __init__(self, args):
         self.args = args
+
 
 class SIBError(M3Exception):
     def __init__(self, args):
         self.args = args
 
+
 class M3Notification(M3Exception):
     def __init__(self, args):
         self.args = args
+
 
 # Classes for URI, Literal, bNode and Triple
 
 class Node:
     pass
+
 
 class URI(Node):
     def __init__(self, value):
@@ -223,7 +231,7 @@ class URI(Node):
         return str(self.value)
 
     def __repr__(self):
-        return "<%s>"%self.value
+        return "<%s>" % self.value
 
     def __eq__(self, other):
         if not isinstance(other, URI):
@@ -239,6 +247,7 @@ class URI(Node):
 
     def __hash__(self):
         return hash(self.value)
+
 
 class bNode(Node):
     def __init__(self, value):
@@ -249,7 +258,7 @@ class bNode(Node):
         return str(self.value)
 
     def __repr__(self):
-        return "_:%s"%self.value
+        return "_:%s" % self.value
 
     def __eq__(self, other):
         if not isinstance(other, bNode):
@@ -266,8 +275,9 @@ class bNode(Node):
     def __hash__(self):
         return hash(self.value)
 
+
 class Literal(Node):
-    def __init__(self, value, lang = None, dt = None):
+    def __init__(self, value, lang=None, dt=None):
         if lang and dt:
             raise KPError("lang and dt in Literal are mutually exclusive")
         self.value = value
@@ -279,7 +289,7 @@ class Literal(Node):
         return str(self.value)
 
     def __repr__(self):
-        return '"%s"'%self.value
+        return '"%s"' % self.value
 
     def __eq__(self, other):
         if not isinstance(other, Literal):
@@ -295,9 +305,9 @@ class Literal(Node):
 
     def __hash__(self):
         if lang and not dt:
-            return hash(self.value+str(self.lang))
+            return hash(self.value + str(self.lang))
         elif dt and not lang:
-            return hash(self.value+str(self.dt))
+            return hash(self.value + str(self.dt))
         else:
             return hash(self.value)
 
@@ -316,19 +326,19 @@ class Triple(tuple):
         return tuple.__new__(cls, (s, p, o))
 
     def __eq__(self, other):
-        return self[0]==other[0] and self[1]==other[1] and self[2]==other[2]
+        return self[0] == other[0] and self[1] == other[1] and self[2] == other[2]
 
     def __ne__(self, other):
-        return self[0]!=other[0] or self[1]!=other[1] or self[2]!=other[2]
+        return self[0] != other[0] or self[1] != other[1] or self[2] != other[2]
 
     def encode_to_m3(self):
         s, p, o = self
         for i in self:
             if i == None:
                 i = SIB_ANY_URI
-        return M3_TRIPLE_TEMPLATE%(s.nodetype, str(s),
-                                   str(p),
-                                   o.nodetype, str(o))
+        return M3_TRIPLE_TEMPLATE % (s.nodetype, str(s),
+                                     str(p),
+                                     o.nodetype, str(o))
 
 
 # KP definitions            
@@ -341,7 +351,7 @@ class KP:
         self.node_id = node_id + "-" + KP_ID_POSTFIX
         self.user_node_id = node_id
 
-    def discover(self, method = "Manual", browse = True, name = None):
+    def discover(self, method="Manual", browse=True, name=None):
         '''Discover available smart spaces. Currently available
            discovery methods are:
              - Manual: give IP address and port
@@ -352,46 +362,47 @@ class KP:
            (SSName, (connector class, (connector constructor args)))
            '''
         disc = discovery.discover(method, name)
+
         def _insert_connector(item):
             n, h = item
             c, a = h
             c = TCPConnector
             rv = (n, (c, a))
             return rv
-            
+
         if browse and not method == "Manual":
             while True:
                 i = 1
-                print "Please select Smart Space from list or (R)efresh:"
+                print("Please select Smart Space from list or (R)efresh:")
                 for item in disc:
-                    print i, " : ", item[0]
+                    print(i, " : ", item[0])
                     i += 1
-                    
+
                 inp = raw_input("Pick number or (R)efresh: ")
                 if inp == "R" or inp == "r":
                     disc = discovery.discover(method, name)
                     continue
                 else:
                     try:
-                        disc = disc[int(inp)-1]
+                        disc = disc[int(inp) - 1]
                     except KeyboardInterrupt:
                         break
                     except:
-                        print "Incorrect command!" 
-                        print "Choose a number in a list or (R)efresh"
+                        print("Incorrect command!")
+                        print("Choose a number in a list or (R)efresh")
                         continue
                     else:
-                        #print "CONNECTION METHOD", disc[1][0]
+                        # print "CONNECTION METHOD", disc[1][0]
                         if disc[1][0] == "TCP":
                             return _insert_connector(disc)
                         else:
-                            #print "Unknown connection type"
+                            # print "Unknown connection type"
                             return None
         elif method == "Manual":
             if disc[1][0] == "TCP":
                 return _insert_connector(disc)
             else:
-                print "Unknown connection type:", item[1][0]
+                print("Unknown connection type:", item[1][0])
                 return None
         else:
             ss_list = []
@@ -399,9 +410,9 @@ class KP:
                 if item[1][0] == "TCP":
                     ss_list.append(_insert_connector(item))
                 else:
-                    print "Unknown connection type:", item[1][0]
+                    print("Unknown connection type:", item[1][0])
             return ss_list
-        
+
     def join(self, dest):
         '''Join a smart space. Argument dest is a smart space handle of form
         (SSName, (connector class, (connector constructor args))).
@@ -412,9 +423,9 @@ class KP:
         connector, args = handle
         conn = connector(args)
         tr_id = get_tr_id()
-        tmp = [SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(targetSS),
-                                      "JOIN", str(tr_id),
-                                      SSAP_JOIN_PARAM_TEMPLATE%("XYZZY"))]
+        tmp = [SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(targetSS),
+                                        "JOIN", str(tr_id),
+                                        SSAP_JOIN_PARAM_TEMPLATE % ("XYZZY"))]
         join_msg = "".join(tmp)
 
         conn.connect()
@@ -425,11 +436,11 @@ class KP:
             self.member_of.append(targetSS)
             return True
         elif "status" in cnf:
-            print "Could not join SS", targetSS
+            print("Could not join SS", targetSS)
             raise SIBError(cnf["status"])
         else:
             raise SIBError(M3_SIB_ERROR)
-    
+
     def leave(self, dest):
         '''Leave a smart space. Argument dest is a smart space handle of form
         (SSName, (connector class, (connector constructor args))).
@@ -441,11 +452,11 @@ class KP:
         conn = connector(args)
         tr_id = get_tr_id()
 
-        leave_msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(targetSS),
-                                           "LEAVE", str(tr_id), "")
+        leave_msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(targetSS),
+                                             "LEAVE", str(tr_id), "")
         conn.connect()
         conn.send(leave_msg)
-        #print "Sent leave msg"
+        # print "Sent leave msg"
         cnf = conn.receive()
         conn.close()
         if "status" in cnf and cnf["status"] == M3_SUCCESS:
@@ -460,8 +471,6 @@ class KP:
             tmp = filter(lambda x: x != targetSS, self.member_of)
             self.member_of = tmp
             raise SIBError(M3_SIB_ERROR)
-            
-
 
     def CreateInsertTransaction(self, dest):
         '''Creates an insert transaction for inserting information
@@ -469,7 +478,7 @@ class KP:
         Returns an instance of Insert(Transaction) class
         '''
         c = Insert(dest, self.node_id)
-        self.connections.append(("PROACTIVE", c))
+        list(self.connections).append(("PROACTIVE", c))
         return c
 
     def CloseInsertTransaction(self, trans):
@@ -484,7 +493,7 @@ class KP:
         Returns an instance of Remove(Transaction) class
         '''
         c = Remove(dest, self.node_id)
-        self.connections.append(("RETRACTION", c))
+        list(self.connections).append(("RETRACTION", c))
         return c
 
     def CloseRemoveTransaction(self, trans):
@@ -495,7 +504,7 @@ class KP:
 
     def CreateUpdateTransaction(self, dest):
         c = Update(dest, self.node_id)
-        self.connections.append(("UPDATE", c))
+        list(self.connections).append(("UPDATE", c))
         return c
 
     def CloseUpdateTransaction(self, trans):
@@ -504,13 +513,13 @@ class KP:
         trans.close()
         self.connections = filter(lambda x: x[1] != trans, self.connections)
 
-    def CreateSubscribeTransaction(self, dest, once = False):
+    def CreateSubscribeTransaction(self, dest, once=False):
         '''Creates a subscribe transaction for subscribing to
         information in a smart space.
         Returns an instance of Subscribe(Transaction) class
         '''
         c = Subscribe(dest, self.node_id, once)
-        self.connections.append(("REACTIVE", c))
+        list(self.connections).append(("REACTIVE", c))
         return c
 
     def CloseSubscribeTransaction(self, trans):
@@ -525,7 +534,7 @@ class KP:
         Returns an instance of Query(Transaction) class
         '''
         c = Query(dest, self.node_id)
-        self.connections.append(("QUERY", c))
+        list(self.connections).append(("QUERY", c))
         return c
 
     def CloseQueryTransaction(self, trans):
@@ -534,9 +543,11 @@ class KP:
         trans.close()
         self.connections = filter(lambda x: x[1] != trans, self.connections)
 
+
 class Transaction:
     '''Abstract base class for M3 operations.
     '''
+
     def __init__(self, dest, node_id):
         self.node_id = node_id
         self.tr_id = ""
@@ -551,9 +562,8 @@ class Transaction:
             raise SIBError((msg["status"],))
         else:
             raise SIBError((M3_SIB_ERROR,))
- 
 
-    def _encode(self, triples, wildcard = True):
+    def _encode(self, triples, wildcard=True):
         tmp = ['<triple_list>']
         for t in triples:
             s, p, o = t
@@ -564,32 +574,33 @@ class Transaction:
                     p = URI(SIB_ANY_URI)
                 if o == None:
                     o = URI(SIB_ANY_URI)
-            
-            if  o.nodetype == "literal":
-                tmp.append(M3_TRIPLE_TEMPLATE%(s.nodetype, str(s), str(p), 
-                                               o.nodetype, 
-                                               ''.join([CDATA_START,
-                                                        str(o),
-                                                        CDATA_END])))
+
+            if o.nodetype == "literal":
+                tmp.append(M3_TRIPLE_TEMPLATE % (s.nodetype, str(s), str(p),
+                                                 o.nodetype,
+                                                 ''.join([CDATA_START,
+                                                          str(o),
+                                                          CDATA_END])))
             else:
-                tmp.append(M3_TRIPLE_TEMPLATE%(s.nodetype, str(s), str(p), 
-                                               o.nodetype, str(o)))
+                tmp.append(M3_TRIPLE_TEMPLATE % (s.nodetype, str(s), str(p),
+                                                 o.nodetype, str(o)))
         tmp.append('</triple_list>')
         return "".join(tmp)
-       
+
+
 class Insert(Transaction):
     """Class handling Insert transactions.
     """
-                
+
     def _create_msg(self, tr_id, payload, confirm, expire_time, encoding):
         """Internal. Create a SSAP XML message for INSERT REQUEST
         """
         tmp = ["<SSAP_message><transaction_type>INSERT</transaction_type>",
                "<message_type>REQUEST</message_type>"]
-        tmp.extend(["<transaction_id>", str(tr_id),"</transaction_id>"])
+        tmp.extend(["<transaction_id>", str(tr_id), "</transaction_id>"])
         tmp.extend(["<node_id>", str(self.node_id), "</node_id>"])
         tmp.extend(["<space_id>", str(self.targetSS), "</space_id>"])
-        tmp.extend(['<parameter name="insert_graph" encoding="%s">'%encoding.upper(),
+        tmp.extend(['<parameter name="insert_graph" encoding="%s">' % encoding.upper(),
                     str(payload), "</parameter>"])
         tmp.extend(['<parameter name = "confirm">',
                     str(confirm).upper(),
@@ -597,15 +608,14 @@ class Insert(Transaction):
                     "</SSAP_message>"])
         return "".join(tmp)
 
-    def insert(self, payload, pl_type = "python",
-             encoding = "rdf-m3", confirm = True,
-             expire_time = None):
+    def insert(self, payload, pl_type="python",
+               encoding="rdf-m3", confirm=True,
+               expire_time=None):
+        self.send(payload, pl_type, encoding, confirm, expire_time)
 
-	self.send(payload, pl_type, encoding, confirm, expire_time)
-
-    def send(self, payload, pl_type = "python",
-             encoding = "rdf-m3", confirm = True,
-             expire_time = None):
+    def send(self, payload, pl_type="python",
+             encoding="rdf-m3", confirm=True,
+             expire_time=None):
         """Accepted format for payload is determined by the parameter pl_type.
            - pl_type == 'python': payload is a list of tuples
              (('s', 'p', 'o'), subject_type, object_type)
@@ -625,39 +635,37 @@ class Insert(Transaction):
              encoding only)
         """
         self.tr_id = get_tr_id()
-	encoding=encoding.upper()
+        encoding = encoding.upper()
 
-        if ((pl_type != "RDF-XML") and (encoding!="RDF-XML")):
-
+        if ((pl_type != "RDF-XML") and (encoding != "RDF-XML")):
+            if not isinstance(payload, list) :
+                payload = [payload]
             m3_payload = self._encode(payload)
             xml_msg = self._create_msg(self.tr_id,
                                        m3_payload,
                                        confirm,
                                        expire_time,
                                        encoding)
-	elif ((pl_type == "RDF-XML") or (encoding=="RDF-XML")):
+        elif ((pl_type == "RDF-XML") or (encoding == "RDF-XML")):
+            pl_type = "RDF-XML"
+            encoding = "RDF-XML"
 
-	    pl_type = "RDF-XML"
-	    encoding="RDF-XML"
+            try:
+                '''read a file '''
+                f = open(payload, 'r')
+                string = f.read()
+            except:
+                '''read a url '''
+                filehandle = urllib.urlretrieve(payload)
+                f = open(filehandle[0], 'r')
+                string = f.read()
 
-	    try:
-		    '''read a file '''
-		    f = open(payload, 'r')
-		    string=f.read()
-	    except:
-		    '''read a url '''
-		    filehandle = urllib.urlretrieve(payload)
-		    f = open(filehandle[0], 'r')
-		    string=f.read()
+            string = string.replace("&", "&amp;");
+            string = string.replace('"', '&quot;');
+            string = string.replace("'", "&apos;");
 
-	 
-	    string=string.replace("&","&amp;");
-	    string=string.replace('"','&quot;');
-	    string=string.replace("'","&apos;");
-            
-	    string=string.replace('>',"&gt;");
-	    string=string.replace("<","&lt;");
-
+            string = string.replace('>', "&gt;");
+            string = string.replace("<", "&lt;");
 
             xml_msg = self._create_msg(self.tr_id,
                                        string,
@@ -680,12 +688,12 @@ class Insert(Transaction):
             icf = BNodeUriListHandler(bnodes)
             parser = make_parser()
             parser.setContentHandler(icf)
-	    '''
-            parser.parse(StringIO.StringIO(rcvd['bnodes']))
-            if encoding.lower() == 'rdf-m3':
-                return (rcvd["status"], bnodes)
-            else:
-	    '''
+            '''
+                parser.parse(StringIO.StringIO(rcvd['bnodes']))
+                if encoding.lower() == 'rdf-m3':
+                    return (rcvd["status"], bnodes)
+                else:
+            '''
             return (rcvd["status"], {})
 
     def close(self):
@@ -695,6 +703,7 @@ class Insert(Transaction):
 class Remove(Transaction):
     '''Class for handling Remove transactions.
     '''
+
     def __init__(self, dest, node_id):
         Transaction.__init__(self, dest, node_id)
         self.tr_type = "REMOVE"
@@ -702,14 +711,14 @@ class Remove(Transaction):
     def _create_msg(self, tr_id, triples, type, confirm):
         '''Internal. Create a SSAP XML message for REMOVE REQUEST
         '''
-        params = SSAP_REMOVE_PARAM_TEMPLATE%(str(type).upper(),
-                                             str(triples),
-                                             str(confirm).upper())
-        tmp = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        params = SSAP_REMOVE_PARAM_TEMPLATE % (str(type).upper(),
+                                               str(triples),
+                                               str(confirm).upper())
+        tmp = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return tmp
 
-    def remove(self, triples, type = 'rdf-m3', confirm = True):
+    def remove(self, triples, type='rdf-m3', confirm=True):
         '''Remove triples listed in parameter triples. Triples may
            contain wildcards (None as subject, predicate, or object).
            The removed triples will then be the result of such pattern
@@ -722,7 +731,8 @@ class Remove(Transaction):
                 triples = [triples]
             triples_enc = self._encode(triples)
         else:
-            print "Only rdf-m3 encoding supported at moment!"
+            print
+            "Only rdf-m3 encoding supported at moment!"
             raise SIBError(M3_SIB_FAILURE_NOT_IMPLEMENTED)
 
         xml_msg = self._create_msg(tr_id, triples_enc, type, confirm)
@@ -738,6 +748,7 @@ class Remove(Transaction):
     def close(self):
         self.conn.close()
 
+
 class Update(Transaction):
     def __init__(self, dest, node_id):
         Transaction.__init__(self, dest, node_id)
@@ -746,17 +757,17 @@ class Update(Transaction):
     def _create_msg(self, tr_id, i_triples, i_type, r_triples, r_type, confirm):
         '''Internal. Create a SSAP message for UPDATE REQUEST
         '''
-        params = SSAP_UPDATE_PARAM_TEMPLATE%(str(i_type).upper(),
-                                             str(i_triples),
-                                             str(r_type).upper(),
-                                             str(r_triples),
-                                             str(confirm).upper())
-        tmp = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        params = SSAP_UPDATE_PARAM_TEMPLATE % (str(i_type).upper(),
+                                               str(i_triples),
+                                               str(r_type).upper(),
+                                               str(r_triples),
+                                               str(confirm).upper())
+        tmp = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return tmp
 
-    def update(self, i_triples, i_enc, 
-               r_triples, r_enc, confirm = True):
+    def update(self, i_triples, i_enc,
+               r_triples, r_enc, confirm=True):
         '''Perform an atomic update operation. First, removes the triples 
            given in parameter r_triples and then inserts the triples given
            in parameter i_triples. Parameters i_enc and r_enc have to be 
@@ -764,9 +775,9 @@ class Update(Transaction):
            as in insert and the triples in r_triples as in remove.
         '''
         tr_id = get_tr_id()
-        i_triples = self._encode(i_triples, wildcard = False)
+        i_triples = self._encode(i_triples, wildcard=False)
         r_triples = self._encode(r_triples)
-        xml_msg = self._create_msg(tr_id, i_triples, i_enc, 
+        xml_msg = self._create_msg(tr_id, i_triples, i_enc,
                                    r_triples, r_enc, confirm)
         self.conn.connect()
         self.conn.send(xml_msg)
@@ -796,53 +807,53 @@ class Query(Transaction):
         self.tr_type = "QUERY"
 
     def _create_wql_values_msg(self, tr_id, s_node, path):
-        query = SSAP_WQL_VALUES_TEMPLATE%(s_node.nodetype, str(s_node), 
-                                          str(path))
-        params = SSAP_QUERY_TEMPLATE%("WQL-VALUES", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_VALUES_TEMPLATE % (s_node.nodetype, str(s_node),
+                                            str(path))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-VALUES", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_wql_related_msg(self, tr_id, s_node, e_node, path):
-        query = SSAP_WQL_RELATED_TEMPLATE%(s_node.nodetype, str(s_node), 
-                                           e_node.nodetype, str(e_node),
-                                           str(path))
-        params = SSAP_QUERY_TEMPLATE%("WQL-RELATED", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_RELATED_TEMPLATE % (s_node.nodetype, str(s_node),
+                                             e_node.nodetype, str(e_node),
+                                             str(path))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-RELATED", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_wql_nodetypes_msg(self, tr_id, node):
-        query = SSAP_WQL_NODETYPES_TEMPLATE%(str(node))
-        params = SSAP_QUERY_TEMPLATE%("WQL-NODETYPES", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_NODETYPES_TEMPLATE % (str(node))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-NODETYPES", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_wql_istype_msg(self, tr_id, node, type):
-        query = SSAP_WQL_ISTYPE_TEMPLATE%(str(node), str(type))
-        params = SSAP_QUERY_TEMPLATE%("WQL-ISTYPE", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_ISTYPE_TEMPLATE % (str(node), str(type))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-ISTYPE", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_wql_issubtype_msg(self, tr_id, subtype, supertype):
-        query = SSAP_WQL_ISSUBTYPE_TEMPLATE%(str(subtype), str(supertype))
-        params = SSAP_QUERY_TEMPLATE%("WQL-ISSUBTYPE", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_ISSUBTYPE_TEMPLATE % (str(subtype), str(supertype))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-ISSUBTYPE", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_rdf_msg(self, tr_id, triples):
-        params = SSAP_QUERY_TEMPLATE%("RDF-M3", self._encode(triples))
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        params = SSAP_QUERY_TEMPLATE % ("RDF-M3", self._encode(triples))
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_sparql_msg(self, tr_id, query_string):
-        params = SSAP_QUERY_TEMPLATE%("sparql", query_string)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        params = SSAP_QUERY_TEMPLATE % ("sparql", query_string)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def wql_values_query(self, start_node, path):
@@ -882,7 +893,7 @@ class Query(Transaction):
            Returns: boolean
         '''
         self.tr_id = get_tr_id()
-        xml_msg = self._create_wql_related_msg(self.tr_id, 
+        xml_msg = self._create_wql_related_msg(self.tr_id,
                                                start_node, end_node, path)
         self.conn.connect()
         self.conn.send(xml_msg)
@@ -932,8 +943,8 @@ class Query(Transaction):
         '''
         self.tr_id = get_tr_id()
         if isinstance(node, Literal) or isinstance(type, Literal):
-            return None # No literals allowed here
-        xml_msg = self._create_wql_istype_msg(self.tr_id, 
+            return None  # No literals allowed here
+        xml_msg = self._create_wql_istype_msg(self.tr_id,
                                               node, type)
         self.conn.connect()
         self.conn.send(xml_msg)
@@ -960,8 +971,8 @@ class Query(Transaction):
 
         self.tr_id = get_tr_id()
         if isinstance(subtype, Literal) or isinstance(supertype, Literal):
-            return None # No literals allowed here
-        xml_msg = self._create_wql_issubtype_msg(self.tr_id, 
+            return None  # No literals allowed here
+        xml_msg = self._create_wql_issubtype_msg(self.tr_id,
                                                  subtype, supertype)
         self.conn.connect()
         self.conn.send(xml_msg)
@@ -999,10 +1010,9 @@ class Query(Transaction):
             return results_list
         else:
             raise SIBError(M3_SIB_ERROR)
-   
-    
+
     def sparql_query(self, string_q):
-        query_string=self.replace_string(string_q)
+        query_string = self.replace_string(string_q)
         self.tr_id = get_tr_id()
         sparql_msg = self._create_sparql_msg(self.tr_id, query_string)
         self.conn.connect()
@@ -1010,24 +1020,25 @@ class Query(Transaction):
         response = self.conn.receive()
         self._check_error(response)
         if "results" in response:
-            results_list=parse_sparql(response["results"])
+            results_list = parse_sparql(response["results"])
             return results_list
         else:
             raise SIBError(M3_SIB_ERROR)
-    
-    def replace_string(self,stringa_orig):
-        st1=stringa_orig.replace("&","&amp;")
-        st2=st1.replace("<","&lt;")
-        st3=st2.replace(">","&gt;")
-        st4=st3.replace('"',"&quot;")
-        st5=st4.replace("'","&apos;")
+
+    def replace_string(self, stringa_orig):
+        st1 = stringa_orig.replace("&", "&amp;")
+        st2 = st1.replace("<", "&lt;")
+        st3 = st2.replace(">", "&gt;")
+        st4 = st3.replace('"', "&quot;")
+        st5 = st4.replace("'", "&apos;")
         return st5
 
     def close(self):
         self.conn.close()
 
+
 class Subscribe(Transaction):
-    def __init__(self, dest, node_id, once = False):
+    def __init__(self, dest, node_id, once=False):
         self.node_id = node_id
         self.tr_id = 0
         self.targetSS, handle = dest
@@ -1038,53 +1049,53 @@ class Subscribe(Transaction):
         self.tr_type = "SUBSCRIBE"
 
     def _create_wql_values_msg(self, tr_id, s_node, path):
-        query = SSAP_WQL_VALUES_TEMPLATE%(s_node.nodetype, str(s_node), 
-                                          str(path))
-        params = SSAP_QUERY_TEMPLATE%("WQL-VALUES", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_VALUES_TEMPLATE % (s_node.nodetype, str(s_node),
+                                            str(path))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-VALUES", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_wql_related_msg(self, tr_id, s_node, e_node, path):
-        query = SSAP_WQL_RELATED_TEMPLATE%(s_node.nodetype, str(s_node), 
-                                           e_node.nodetype, str(e_node),
-                                           str(path))
-        params = SSAP_QUERY_TEMPLATE%("WQL-RELATED", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_RELATED_TEMPLATE % (s_node.nodetype, str(s_node),
+                                             e_node.nodetype, str(e_node),
+                                             str(path))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-RELATED", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_wql_nodetypes_msg(self, tr_id, node):
-        query = SSAP_WQL_NODETYPES_TEMPLATE%(str(node))
-        params = SSAP_QUERY_TEMPLATE%("WQL-NODETYPES", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_NODETYPES_TEMPLATE % (str(node))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-NODETYPES", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_wql_istype_msg(self, tr_id, node, type):
-        query = SSAP_WQL_ISTYPE_TEMPLATE%(str(node), str(type))
-        params = SSAP_QUERY_TEMPLATE%("WQL-ISTYPE", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_ISTYPE_TEMPLATE % (str(node), str(type))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-ISTYPE", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_wql_issubtype_msg(self, tr_id, subtype, supertype):
-        query = SSAP_WQL_ISSUBTYPE_TEMPLATE%(str(subtype), str(supertype))
-        params = SSAP_QUERY_TEMPLATE%("WQL-ISSUBTYPE", query)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        query = SSAP_WQL_ISSUBTYPE_TEMPLATE % (str(subtype), str(supertype))
+        params = SSAP_QUERY_TEMPLATE % ("WQL-ISSUBTYPE", query)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_rdf_msg(self, tr_id, triples):
-        params = SSAP_QUERY_TEMPLATE%("RDF-M3", self._encode(triples))
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        params = SSAP_QUERY_TEMPLATE % ("RDF-M3", self._encode(triples))
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def _create_sparql_msg(self, tr_id, query_string):
-        params = SSAP_QUERY_TEMPLATE%("sparql", query_string)
-        msg = SSAP_MESSAGE_TEMPLATE%(str(self.node_id), str(self.targetSS),
-                                     self.tr_type, str(tr_id), params)
+        params = SSAP_QUERY_TEMPLATE % ("sparql", query_string)
+        msg = SSAP_MESSAGE_TEMPLATE % (str(self.node_id), str(self.targetSS),
+                                       self.tr_type, str(tr_id), params)
         return msg
 
     def subscribe_rdf(self, triple, msg_handler):
@@ -1114,7 +1125,7 @@ class Subscribe(Transaction):
         self.msg_handler = msg_handler
         self.tr_id = get_tr_id()
         xml_msg = self._create_rdf_msg(self.tr_id, triple)
-        #print "SUBSCRIBE sending:", xml_msg
+        # print "SUBSCRIBE sending:", xml_msg
         self.conn.connect()
         self.conn.send(xml_msg)
         cnf = self.conn.receive()
@@ -1130,7 +1141,7 @@ class Subscribe(Transaction):
         return initial_result
 
     def subscribe_sparql(self, string_q, msg_handler):
-        query_string=self.replace_string(string_q)
+        query_string = self.replace_string(string_q)
         self.tr_id = get_tr_id()
         sparql_msg = self._create_sparql_msg(self.tr_id, query_string)
         self.conn.connect()
@@ -1138,29 +1149,29 @@ class Subscribe(Transaction):
         response = self.conn.receive()
         self._check_error(response)
 
-	self.sub_id = response["subscription_id"]
+        self.sub_id = response["subscription_id"]
         if "results" in response:
-            results_list=parse_sparql(response["results"])
-            
+            results_list = parse_sparql(response["results"])
+
         else:
-            results_list=[]
+            results_list = []
 
         sub_h = sparqlSubscribeHandler(self.node_id,
-                                    self.tr_id,
-                                    self.conn,
-                                    msg_handler)
+                                       self.tr_id,
+                                       self.conn,
+                                       msg_handler)
         sub_h.start()
-   	return results_list
+        return results_list
 
-    def replace_string(self,stringa_orig):
-        st1=stringa_orig.replace("&","&amp;")
-        st2=st1.replace("<","&lt;")
-        st3=st2.replace(">","&gt;")
-        st4=st3.replace('"',"&quot;")
-        st5=st4.replace("'","&apos;")
+    def replace_string(self, stringa_orig):
+        st1 = stringa_orig.replace("&", "&amp;")
+        st2 = st1.replace("<", "&lt;")
+        st3 = st2.replace(">", "&gt;")
+        st4 = st3.replace('"', "&quot;")
+        st5 = st4.replace("'", "&apos;")
         return st5
 
-    def subscribe_wql_values(self, start_node, path, 
+    def subscribe_wql_values(self, start_node, path,
                              msg_handler):
         '''Subscribe to information stored in a smart
            space with a wql values query. Returns the list of 
@@ -1194,8 +1205,8 @@ class Subscribe(Transaction):
         sub_h.start()
         return initial_result
 
-    def subscribe_wql_related(self, start_node, end_node, path, 
-                             msg_handler):
+    def subscribe_wql_related(self, start_node, end_node, path,
+                              msg_handler):
         '''Subscribe to information stored in a smart space using a wql
            related query. 
 
@@ -1230,7 +1241,7 @@ class Subscribe(Transaction):
         self._check_error(cnf)
 
         self.sub_id = cnf["subscription_id"]
-        #self.msg_handler.handle(initial_result)            
+        # self.msg_handler.handle(initial_result)
         sub_h = WQLBooleanSubscribeHandler(self.node_id, self.tr_id,
                                            self.conn, msg_handler)
         sub_h.start()
@@ -1263,7 +1274,7 @@ class Subscribe(Transaction):
         self.conn.send(xml_msg)
         cnf = self.conn.receive()
         self._check_error(cnf)
-        
+
         self.sub_id = cnf["subscription_id"]
         initial_result = parse_URI_list(cnf["results"])
         sub_h = WQLNodeSubscribeHandler(self.node_id, self.tr_id,
@@ -1271,7 +1282,7 @@ class Subscribe(Transaction):
         sub_h.start()
         return initial_result
 
-    def subscribe_wql_istype(self, node, type, 
+    def subscribe_wql_istype(self, node, type,
                              msg_handler):
         '''Subscribe to information stored in a smart space using a wql
            istype query. 
@@ -1295,18 +1306,18 @@ class Subscribe(Transaction):
                     the subscription was set up.
         '''
         if isinstance(node, Literal) or isinstance(type, Literal):
-            return None # No literals allowed here
+            return None  # No literals allowed here
         self.msg_handler = msg_handler
         self.tr_id = get_tr_id()
         xml_msg = self._create_wql_istype_msg(self.tr_id, node,
-                                               type)
+                                              type)
         self.conn.connect()
         self.conn.send(xml_msg)
         cnf = self.conn.receive()
         self._check_error(cnf)
-        
+
         self.sub_id = cnf["subscription_id"]
-        #self.msg_handler.handle(initial_result)            
+        # self.msg_handler.handle(initial_result)
         sub_h = WQLBooleanSubscribeHandler(self.node_id, self.tr_id,
                                            self.conn, msg_handler)
         sub_h.start()
@@ -1315,8 +1326,8 @@ class Subscribe(Transaction):
         else:
             return False
 
-    def subscribe_wql_issubtype(self, subtype, supertype, 
-                             msg_handler):
+    def subscribe_wql_issubtype(self, subtype, supertype,
+                                msg_handler):
         '''Subscribe to information stored in a smart space using a wql
            issubtype query. 
 
@@ -1339,10 +1350,10 @@ class Subscribe(Transaction):
                     the subscription was set up.
         '''
         if isinstance(subtype, Literal) or isinstance(supertype, Literal):
-            return None # No literals allowed here
+            return None  # No literals allowed here
         self.msg_handler = msg_handler
         self.tr_id = get_tr_id()
-        xml_msg = self._create_wql_issubtype_msg(self.tr_id, 
+        xml_msg = self._create_wql_issubtype_msg(self.tr_id,
                                                  subtype, supertype)
         self.conn.connect()
         self.conn.send(xml_msg)
@@ -1350,7 +1361,7 @@ class Subscribe(Transaction):
         self._check_error(cnf)
 
         self.sub_id = cnf["subscription_id"]
-        #self.msg_handler.handle(initial_result)            
+        # self.msg_handler.handle(initial_result)
         sub_h = WQLBooleanSubscribeHandler(self.node_id, self.tr_id,
                                            self.conn, msg_handler)
         sub_h.start()
@@ -1360,13 +1371,14 @@ class Subscribe(Transaction):
             return False
 
     def close(self):
-        tmp = SSAP_UNSUBSCRIBE_TEMPLATE%self.sub_id
-        msg = SSAP_MESSAGE_TEMPLATE%(self.node_id, self.targetSS,
-                                     "UNSUBSCRIBE",
-                                     str(get_tr_id()), tmp)
+        tmp = SSAP_UNSUBSCRIBE_TEMPLATE % self.sub_id
+        msg = SSAP_MESSAGE_TEMPLATE % (self.node_id, self.targetSS,
+                                       "UNSUBSCRIBE",
+                                       str(get_tr_id()), tmp)
         self.unsub_conn.connect()
         self.unsub_conn.send(msg)
         self.unsub_conn.close()
+
 
 class RDFSubscribeHandler(threading.Thread):
     def __init__(self, node_id, tr_id, connector,
@@ -1434,7 +1446,6 @@ class sparqlSubscribeHandler(threading.Thread):
                 raise SIBError(M3_SIB_ERROR)
 
 
-
 class WQLNodeSubscribeHandler(threading.Thread):
     def __init__(self, node_id, tr_id, connector,
                  msg_handler):
@@ -1443,11 +1454,11 @@ class WQLNodeSubscribeHandler(threading.Thread):
         self.tr_id = tr_id
         self.conn = connector
         self.msg_handler = msg_handler
-        
+
     def run(self):
         while True:
             msg = self.conn.receive()
-            #print "SUBSCRIBE RECEIVED: ", msg
+            # print "SUBSCRIBE RECEIVED: ", msg
             if msg["transaction_type"] == "SUBSCRIBE":
                 if msg["message_type"] == "INDICATION":
                     if "new_results" in msg and "obsolete_results" in msg:
@@ -1467,6 +1478,7 @@ class WQLNodeSubscribeHandler(threading.Thread):
             else:
                 raise SIBError(M3_SIB_ERROR)
 
+
 class WQLBooleanSubscribeHandler(threading.Thread):
     def __init__(self, node_id, tr_id, connector,
                  msg_handler):
@@ -1475,12 +1487,12 @@ class WQLBooleanSubscribeHandler(threading.Thread):
         self.tr_id = tr_id
         self.conn = connector
         self.msg_handler = msg_handler
-        
+
     def run(self):
         report_type = self.report_type
         while True:
             msg = self.conn.receive()
-            #print "SUBSCRIBE RECEIVED: ", msg
+            # print "SUBSCRIBE RECEIVED: ", msg
             if msg["transaction_type"] == "SUBSCRIBE":
                 if msg["message_type"] == "INDICATION":
                     if "new_results" in msg and "obsolete_results" in msg:
@@ -1505,6 +1517,7 @@ class WQLBooleanSubscribeHandler(threading.Thread):
             else:
                 raise SIBError(M3_SIB_ERROR)
 
+
 class Connector:
     def connect(self):
         '''Open a connection to SIB'''
@@ -1527,9 +1540,10 @@ class Connector:
         parsed_msg = {}
         parser = make_parser()
         ssap_mh = SSAPMsgHandler(parsed_msg)
-        parser.setContentHandler(ssap_mh)        
+        parser.setContentHandler(ssap_mh)
         parser.parse(StringIO(msg))
         return parsed_msg
+
 
 class TCPConnector(Connector):
     def __init__(self, arg_tuple):
@@ -1538,13 +1552,13 @@ class TCPConnector(Connector):
 
     def connect(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.s.setsockopt(TCP, socket.TCP_NODELAY, 1)
+        # self.s.setsockopt(TCP, socket.TCP_NODELAY, 1)
         self.s.connect((self.sib_address, self.port))
-        
+
     def send(self, msg):
         length = len(msg)
-        sent = self.s.send(msg)
-	#print msg
+        sent = self.s.send(msg.encode())
+        # print msg
         while sent < length:
             # If complete msg could not be sent, try to send the remaining part
             sent += self.s.send(msg[sent:])
@@ -1554,8 +1568,7 @@ class TCPConnector(Connector):
 
         # Removed shutdown to circumvent a bug in OpenC for symbian
         # This change allows the node libary to run in S60 python
-        #self.s.shutdown(socket.SHUT_WR) # commented to support CuteSIB
-        
+        # self.s.shutdown(socket.SHUT_WR) # commented to support CuteSIB
 
     def receive(self):
         ######
@@ -1567,22 +1580,22 @@ class TCPConnector(Connector):
         msg_end_index = self.msg_buffer.find(END_TAG)
         # Check if msg_buffer contains a complete message
         # If so, return it without receiving from network
-        if msg_end_index != -1: 
+        if msg_end_index != -1:
             msg = self.msg_buffer[:msg_end_index + ETL]
             self.msg_buffer = self.msg_buffer[msg_end_index + ETL:]
-            #print "RECEIVE: got"
-            #print msg
-	    msg_unicode=u""
-	    msg_unicode=unicode(msg.encode('string_escape'))
-	    msg_ascii=msg_unicode.encode('ascii','xmlcharrefreplace')
+            # print "RECEIVE: got"
+            # print msg
+            msg_unicode = u""
+            msg_unicode = unicode(msg.encode('string_escape'))
+            msg_ascii = msg_unicode.encode('ascii', 'xmlcharrefreplace')
             return self._parse_msg(msg_ascii)
         msg = self.msg_buffer
         self.msg_buffer = ""
         # Different conditions cause breaking out of the loop
         # Not a perpetual while loop
         while True:
-            chunk = self.s.recv(4096)
-            if len(chunk) == 0: # Socket closed by SIB
+            chunk = self.s.recv(4096).decode()
+            if len(chunk) == 0:  # Socket closed by SIB
                 msg_end_index = msg.find(END_TAG)
                 # Two cases:
                 # 1: Socket was closed, no complete message
@@ -1590,46 +1603,47 @@ class TCPConnector(Connector):
                 # 2: Socket was closed, complete message received
                 #    -> return message
                 if msg_end_index == -1:
-                    #print "SIB has closed socket"
-                    #print "Incomplete Message remaining in buffer:"
-                    #print msg
+                    # print "SIB has closed socket"
+                    # print "Incomplete Message remaining in buffer:"
+                    # print msg
                     return {}
                 else:
-                    #print "TCPConnector: socket closed, got message:"
-                    #print msg
-		    msg_unicode=u""
-		    msg_unicode=unicode(msg.encode('string_escape'))
-		    msg_ascii=msg_unicode.encode('ascii','xmlcharrefreplace')
+                    # print "TCPConnector: socket closed, got message:"
+                    # print msg
+                    msg_unicode = u""
+                    msg_unicode = unicode(msg.encode('string_escape'))
+                    msg_ascii = msg_unicode.encode('ascii', 'xmlcharrefreplace')
                     return self._parse_msg(msg_ascii)
             msg = msg + chunk
             msg_end_index = msg.find(END_TAG)
-            if msg_end_index == -1: # Received partial msg
+            if msg_end_index == -1:  # Received partial msg
                 continue
             elif msg_end_index + ETL < len(msg):
                 # Received also start of next msg
                 self.msg_buffer += msg[msg_end_index + ETL:]
-                #print "TCPConnector: More than one message received:"
-                #print msg
-		msg_unicode=u""
-		msg_unicode=unicode(msg.encode('string_escape'))
-		msg_ascii=msg_unicode.encode('ascii','xmlcharrefreplace')
+                # print "TCPConnector: More than one message received:"
+                # print msg
+                msg_unicode = u""
+                msg_unicode = (msg.encode('utf-8', 'string_escape'))
+                msg_ascii = str(msg_unicode).decode() #.encode('ascii', 'xmlcharrefreplace')
                 return self._parse_msg(msg_ascii[:msg_end_index + ETL])
 
-            elif msg_end_index + ETL == len(msg): # Complete msg received
-                #print "TCPConnector: got message:"
-		#print msg
-		msg_unicode=u""
-		msg_unicode=unicode(msg.encode('string_escape'))
-		msg_ascii=msg_unicode.encode('ascii','xmlcharrefreplace')
+            elif msg_end_index + ETL == len(msg):  # Complete msg received
+                # print "TCPConnector: got message:"
+                # print msg
+                msg_unicode = u""
+                msg_unicode = (msg.encode('utf-8', 'string_escape'))
+                msg_ascii = msg_unicode.decode() #.encode('ascii', 'xmlcharrefreplace')
                 return self._parse_msg(msg_ascii)
-           
-           
+
     def close(self):
         if hasattr(self, 's'):
             self.s.close()
 
+
 class NodeM3RDFHandler(ContentHandler):
     "Handler for SAX events from M3 RDF encoded triples"
+
     def __init__(self, results_list, bnodes):
         # After parsing, results_list will contain instances of Triple type
         self.results_list = results_list
@@ -1658,7 +1672,7 @@ class NodeM3RDFHandler(ContentHandler):
         elif name == "triple":
             self.inTriple = True
             return
-        
+
     def characters(self, ch):
         if self.inSubject:
             self.subject += ch
@@ -1666,7 +1680,7 @@ class NodeM3RDFHandler(ContentHandler):
             self.predicate += ch
         elif self.inObject:
             self.object += ch
-            
+
     def endElement(self, name):
         if name == "subject":
             self.inSubject = False
@@ -1689,6 +1703,7 @@ class NodeM3RDFHandler(ContentHandler):
             self.literal = False
             return
 
+
 class SSAPMsgHandler(ContentHandler):
     # Parser for received SSAP messages
     # Specification of different messages
@@ -1708,10 +1723,10 @@ class SSAPMsgHandler(ContentHandler):
             self.stack.append(attrs.get("name", None))
             self.in_parameter = True
         elif self.in_parameter:
-            self.content.append('<%s'%name)
+            self.content.append('<%s' % name)
             for i in attrs.items():
-                self.content.append(' %s = "%s"'%(str(i[0]), 
-                                                  str(i[1])))
+                self.content.append(' %s = "%s"' % (str(i[0]),
+                                                    str(i[1])))
             self.content.append(">")
             if name == 'literal' or (name == 'object' and attrs.get('type', None) == 'literal'):
                 self.object_literal = True
@@ -1721,7 +1736,7 @@ class SSAPMsgHandler(ContentHandler):
 
     def characters(self, ch):
         self.content.append(ch)
-            
+
     def endElement(self, name):
         if self.in_parameter and name != 'parameter':
             if self.object_literal and (name == 'literal' or name == 'object'):
@@ -1733,13 +1748,14 @@ class SSAPMsgHandler(ContentHandler):
             self.in_parameter = False
         self.array[self.stack.pop()] = ''.join(self.content).strip()
         self.content = []
-            
+
+
 class UriListHandler(ContentHandler):
     def __init__(self, node_list):
         self.node_list = node_list
         self.in_uri = False
         self.in_lit = False
-            
+
     def startElement(self, name, attrs):
         if name == "uri":
             self.uri = ""
@@ -1750,7 +1766,7 @@ class UriListHandler(ContentHandler):
             self.in_lit = True
         else:
             return
-            
+
     def characters(self, ch):
         if self.in_uri:
             self.uri += ch
@@ -1773,12 +1789,13 @@ class UriListHandler(ContentHandler):
         else:
             return
 
+
 class BNodeUriListHandler(ContentHandler):
     def __init__(self, bnode_map):
         self.bnode_map = bnode_map
         self.bnode = None
         self.inURI = False
-            
+
     def startElement(self, name, attrs):
         if name == "uri":
             self.URI = ""
@@ -1787,7 +1804,7 @@ class BNodeUriListHandler(ContentHandler):
             return
         else:
             return
-            
+
     def characters(self, ch):
         if self.inURI:
             self.URI += ch
