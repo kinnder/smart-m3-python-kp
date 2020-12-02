@@ -6,6 +6,7 @@ from collections import deque
 import threading
 import socket
 import uuid
+import urllib
 from smart_m3 import discovery
 from xml.dom.minidom import parseString
 
@@ -304,9 +305,9 @@ class Literal(Node):
             return self.value != other.value or self.lang != other.lang or self.dt != other.dt
 
     def __hash__(self):
-        if lang and not dt:
+        if self.lang and not self.dt:
             return hash(self.value + str(self.lang))
-        elif dt and not lang:
+        elif self.dt and not self.lang:
             return hash(self.value + str(self.dt))
         else:
             return hash(self.value)
@@ -378,7 +379,7 @@ class KP:
                     print(i, " : ", item[0])
                     i += 1
 
-                inp = raw_input("Pick number or (R)efresh: ")
+                inp = input("Pick number or (R)efresh: ")
                 if inp == "R" or inp == "r":
                     disc = discovery.discover(method, name)
                     continue
@@ -402,7 +403,7 @@ class KP:
             if disc[1][0] == "TCP":
                 return _insert_connector(disc)
             else:
-                print("Unknown connection type:", item[1][0])
+                print("Unknown connection type:", disc[1][0])
                 return None
         else:
             ss_list = []
@@ -926,7 +927,7 @@ class Query(Transaction):
         response = self.conn.receive()
         self._check_error(response)
         if "results" in response:
-            node_list = parse_URI_results(response["results"])
+            node_list = parse_URI_list(response["results"])
             return node_list
         else:
             raise SIBError(M3_SIB_ERROR)
@@ -1586,7 +1587,7 @@ class TCPConnector(Connector):
             # print "RECEIVE: got"
             # print msg
             msg_unicode = u""
-            msg_unicode = unicode(msg.encode('string_escape'))
+            msg_unicode = msg.encode('string_escape')
             msg_ascii = msg_unicode.encode('ascii', 'xmlcharrefreplace')
             return self._parse_msg(msg_ascii)
         msg = self.msg_buffer
@@ -1611,7 +1612,7 @@ class TCPConnector(Connector):
                     # print "TCPConnector: socket closed, got message:"
                     # print msg
                     msg_unicode = u""
-                    msg_unicode = unicode(msg.encode('string_escape'))
+                    msg_unicode = msg.encode('string_escape')
                     msg_ascii = msg_unicode.encode('ascii', 'xmlcharrefreplace')
                     return self._parse_msg(msg_ascii)
             msg = msg + chunk
