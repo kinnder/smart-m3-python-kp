@@ -25,7 +25,7 @@ class MotionSensorHandler:
 				
 
         for trip in removed:
-            if str(trip[2] == "true"):
+            if str(trip[2]) == "true":
                 self.node.update(lamp_off, lamp_on)
                 print("lamp turned off")
 
